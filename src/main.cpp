@@ -7,31 +7,39 @@
 
 #include "../include/shader.hpp"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+__declspec(dllexport) int NvOptimusEnablement = 1;
+__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+#ifdef __cplusplus
+}
+#endif
+
 void processInput(GLFWwindow *window);
-void render(Shader &shader, float vertices[], unsigned int VAO,
-            unsigned int vertLen, unsigned int samples);
+void render(Shader &shader, unsigned int VAO, int vertLen, int samples);
 unsigned int createFramebuffer(unsigned int *texture);
-void saveImage(char *filepath, GLFWwindow *w);
+void saveImage(const char *filepath, GLFWwindow *w);
 
 // settings
-unsigned int SCR_SIZE = 0;
-unsigned int SAMPLES = 0;
-char *PATH = NULL;
+int SCR_SIZE = 0;
+int SAMPLES = 0;
+const char *PATH = nullptr;
 
 int main(int argc, char *argv[]) {
-  // Validate command line arguments
-  if (argc != 4) {
-    std::cout << "USAGE::raytracer <NUM_SAMPLES> <IMAGE_SIZE> <IMAGE_PATH>"
-              << std::endl;
-    return 1;
-  }
+//  // Validate command line arguments
+//  if (argc != 4) {
+//    std::cout << "USAGE::raytracer <NUM_SAMPLES> <IMAGE_SIZE> <IMAGE_PATH>"
+//              << std::endl;
+//    return 1;
+//  }
 #ifdef DEBUG_SINGLE
   SAMPLES = 1e9;
 #else
-  SAMPLES = atoi(argv[1]);
+  SAMPLES = argc > 1 ? atoi(argv[1]) : 1000;
 #endif
-  SCR_SIZE = atoi(argv[2]);
-  PATH = argv[3];
+  SCR_SIZE = argc > 2 ? atoi(argv[2]) : 1600;
+  PATH = argc > 3 ? argv[3] : "out.png";
 
   // glfw: initialize and configure
   // ------------------------------
@@ -40,15 +48,15 @@ int main(int argc, char *argv[]) {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-  srand(time(NULL));
+  srand(time(nullptr));
 #ifdef __APPLE__
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
   // glfw window creation
   // --------------------
   GLFWwindow *window =
-      glfwCreateWindow(SCR_SIZE, SCR_SIZE, "Ray Tracer", NULL, NULL);
-  if (window == NULL) {
+      glfwCreateWindow(SCR_SIZE, SCR_SIZE, "Ray Tracer", nullptr, nullptr);
+  if (!window) {
     std::cout << "Failed to create GLFW window" << std::endl;
     glfwTerminate();
     return -1;
@@ -82,7 +90,7 @@ int main(int argc, char *argv[]) {
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
   // Position attribute
-  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void *)0);
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
   glEnableVertexAttribArray(0);
 
   // Create two needed framebuffers
@@ -91,7 +99,7 @@ int main(int argc, char *argv[]) {
   unsigned int fbTexture2;
   unsigned int fb2 = createFramebuffer(&fbTexture2);
 
-  unsigned int samples = 0;
+  int samples = 0;
 
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, fbTexture1);
@@ -108,7 +116,7 @@ int main(int argc, char *argv[]) {
 
     // Render pass on fb1
     glBindFramebuffer(GL_FRAMEBUFFER, fb1);
-    render(shader, vertices, VAO, sizeof(vertices), samples);
+    render(shader, VAO, sizeof(vertices), samples);
 
     // Copy to fb2
     glBindFramebuffer(GL_FRAMEBUFFER, fb2);
@@ -117,7 +125,8 @@ int main(int argc, char *argv[]) {
     unsigned int ID = copyShader.ID;
     copyShader.use();
     copyShader.setInt("fb", 0);
-    glUniform2f(glGetUniformLocation(ID, "resolution"), SCR_SIZE, SCR_SIZE);
+    glUniform2f(glGetUniformLocation(ID, "resolution"), (float)SCR_SIZE,
+                (float)SCR_SIZE);
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, sizeof(vertices) / 3);
     samples += 1;
@@ -135,7 +144,8 @@ int main(int argc, char *argv[]) {
     dispShader.setInt("screenTexture", 0);
     dispShader.setInt("samples", samples);
 
-    glUniform2f(glGetUniformLocation(ID, "resolution"), SCR_SIZE, SCR_SIZE);
+    glUniform2f(glGetUniformLocation(ID, "resolution"), (float)SCR_SIZE,
+                (float)SCR_SIZE);
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, sizeof(vertices) / 3);
 
@@ -178,8 +188,7 @@ void processInput(GLFWwindow *window) {
   }
 }
 
-void render(Shader &shader, float vertices[], unsigned int VAO,
-            unsigned int vertLen, unsigned int samples) {
+void render(Shader &shader, unsigned int VAO, int vertLen, int samples) {
   // render
   // ------
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -195,7 +204,7 @@ void render(Shader &shader, float vertices[], unsigned int VAO,
 
   shader.setInt("samples", samples);
   shader.setInt("numBounces", 8);
-  shader.setFloat("time", glfwGetTime());
+  //  shader.setFloat("time", (float)glfwGetTime());
   shader.setInt("seedInit", rand());
 
   // Light properties
@@ -203,7 +212,8 @@ void render(Shader &shader, float vertices[], unsigned int VAO,
 
   // Camera properties
   shader.setFloat("focalDistance", 2);
-  glUniform2f(glGetUniformLocation(ID, "resolution"), SCR_SIZE, SCR_SIZE);
+  glUniform2f(glGetUniformLocation(ID, "resolution"), (float)SCR_SIZE,
+              (float)SCR_SIZE);
 
   // Checkerboard
   shader.setFloat("checkerboard", 2);
@@ -222,7 +232,7 @@ unsigned int createFramebuffer(unsigned int *texture) {
   glGenTextures(1, texture);
   glBindTexture(GL_TEXTURE_2D, *texture);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, SCR_SIZE, SCR_SIZE, 0, GL_RGBA,
-               GL_FLOAT, NULL);
+               GL_FLOAT, nullptr);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glBindTexture(GL_TEXTURE_2D, 0);
@@ -240,7 +250,7 @@ unsigned int createFramebuffer(unsigned int *texture) {
   return fb;
 }
 
-void saveImage(char *filepath, GLFWwindow *w) {
+void saveImage(const char *filepath, GLFWwindow *w) {
   int width, height;
   glfwGetFramebufferSize(w, &width, &height);
   GLsizei nrChannels = 3;
