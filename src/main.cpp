@@ -69,7 +69,12 @@ int main(int argc, char *argv[]) {
     std::cout << "Failed to initialize GLAD" << std::endl;
     return -1;
   }
-  //
+  // Print Info
+  printf("GL_VERSION: %s \n", glGetString(GL_VERSION));
+  printf("GL_VENDOR: %s \n", glGetString(GL_VENDOR));
+  printf("GL_SHADING_LANGUAGE_VERSION: %s \n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+  printf("GLFW_VERSION: %s \n", glfwGetVersionString());
+
   // Build and compile our shader zprogram
   // Note: Paths to shader files should be relative to location of executable
   Shader shader("../shaders/vert.glsl", "../shaders/frag.glsl");
